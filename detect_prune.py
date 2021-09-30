@@ -68,7 +68,7 @@ def detect(opt):
         t1 = time_synchronized()
         pred = model(img, augment=opt.augment)[0]
         torch.save(model.state_dict(),"model.pth")
-        print(model)
+        # print(model)
 
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)

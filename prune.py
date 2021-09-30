@@ -393,8 +393,15 @@ def test_prune(data,
     pruned_yaml = {}
     nc = model.model[-1].nc
     pruned_yaml["nc"] = model.model[-1].nc
-    pruned_yaml["depth_multiple"] = 0.33
-    pruned_yaml["width_multiple"] = 0.50
+
+    # # yolov5s
+    # pruned_yaml["depth_multiple"] = 0.33
+    # pruned_yaml["width_multiple"] = 0.50
+
+    # yolov5m
+    pruned_yaml["depth_multiple"] = 0.67
+    pruned_yaml["width_multiple"] = 0.75
+
     pruned_yaml["anchors"] = [[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]]
     anchors = [[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]]
     pruned_yaml["backbone"] = [
@@ -459,6 +466,7 @@ def test_prune(data,
 
     from_to_map = pruned_model.from_to_map
     pruned_model_state = pruned_model.state_dict()
+    # import ipdb;ipdb.set_trace()
     assert pruned_model_state.keys() == modelstate.keys()
     # ======================================================================================= #
     changed_state = []
@@ -524,6 +532,7 @@ def test_prune(data,
     # =============================================================================================== #
     torch.save({"model": model}, "orign_model.pt")
     model = pruned_model
+    # import ipdb;ipdb.set_trace()
     torch.save({"model":model}, "pruned_model.pt")
     model.cuda().eval()
 
@@ -746,10 +755,12 @@ def test_prune(data,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/exp4/weights/last.pt',
-                        help='model.pt path(s)')
-    parser.add_argument('--data', type=str, default='data/mini.yaml', help='*.data path')
-    parser.add_argument('--percent', type=float, default=0.9, help='prune percentage')
+    # parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity2/weights/best.pt,help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity2/weights/best.pt',help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt',help='model.pt path(s)')
+    # parser.add_argument('--data', type=str, default='data/coco128.yaml', help='data.yaml path')
+    parser.add_argument('--data', type=str, default='/home/zq/work/test/yolov5-master/data/cnl.yaml', help='data.yaml path')
+    parser.add_argument('--percent', type=float, default=0.15, help='prune percentage')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')

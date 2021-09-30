@@ -54,10 +54,7 @@ def test(data,
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
         # Load model
-        model = torch.load(weights, map_location=device)["model"]  # load FP32 model
-        testin = torch.randn(1,3,416,416).cuda()
-        model.eval()
-        out = model(testin)
+        model = attempt_load(weights, map_location=device)  # load FP32 model
         print(model)
         gs = max(int(model.stride.max()), 32)  # grid size (max stride)
         imgsz = check_img_size(imgsz, s=gs)  # check img_size
@@ -291,11 +288,11 @@ def test(data,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/kong/yolov5/pruned_model.pt', help='model.pt path(s)')
+    parser = argparse.ArgumentParser(prog='test1.py')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/kong/yolov5/runs/train/exp23/weights/best.pt', help='model.pt path(s)')
     parser.add_argument('--data', type=str, default='data/mini.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
-    parser.add_argument('--img-size', type=int, default=416, help='inference size (pixels)')
+    parser.add_argument('--img-size', type=int, default=320, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
@@ -338,7 +335,7 @@ if __name__ == '__main__':
             test(opt.data, w, opt.batch_size, opt.img_size, 0.25, 0.45, save_json=False, plots=False, opt=opt)
 
     elif opt.task == 'study':  # run over a range of settings and save/plot
-        # python test.py --task study --data coco.yaml --iou 0.7 --weights yolov5s.pt yolov5m.pt yolov5l.pt yolov5x.pt
+        # python test1.py --task study --data coco.yaml --iou 0.7 --weights yolov5s.pt yolov5m.pt yolov5l.pt yolov5x.pt
         x = list(range(256, 1536 + 128, 128))  # x axis (image sizes)
         for w in opt.weights:
             f = f'study_{Path(opt.data).stem}_{Path(w).stem}.txt'  # filename to save to

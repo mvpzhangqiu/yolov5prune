@@ -39,6 +39,14 @@ def obtain_bn_mask(bn_module, thre):
     thre = thre.cuda()
     mask = bn_module.weight.data.abs().ge(thre).float()
 
+    # dimension bug 修改
+    ones = (mask == 1.).sum().sum()
+    while ones <= 1:
+        thre -= 0.005
+        mask = bn_module.weight.data.abs().ge(thre).float()
+        ones = (mask == 1.).sum().sum()
+
+
     return mask
 
 

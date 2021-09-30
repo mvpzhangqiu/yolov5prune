@@ -60,10 +60,13 @@ BN层的具体操作有两部分：
                 for k, m in model.named_modules():
                     if isinstance(m, Bottleneck):
                         if m.add:
+                            # 将跳跃连接的、不需要进行剪枝的节点做上标记
                             ignore_bn_list.append(k.rsplit(".", 2)[0] + ".cv1.bn")
                             ignore_bn_list.append(k + '.cv1.bn')
                             ignore_bn_list.append(k + '.cv2.bn')
+                    # 对需要裁减的BN层进行剪枝
                     if isinstance(m, nn.BatchNorm2d) and (k not in ignore_bn_list):
+                        # 在BP传播时候，在BN层权重乘以权重的符号函数输出和系数
                         m.weight.grad.data.add_(srtmp * torch.sign(m.weight.data))  # L1
                         m.bias.grad.data.add_(opt.sr*10 * torch.sign(m.bias.data))  # L1
             # # ============================= sparsity training ========================== #
