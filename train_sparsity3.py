@@ -38,6 +38,7 @@ from models.common import Bottleneck
 logger = logging.getLogger(__name__)
 
 # additional subgradient descent on the sparsity-induced penalty term
+# 基于稀疏诱导惩罚项的额外次梯度下降
 def updateBN(model):
     for m in model.named_modules():
         if isinstance(m, nn.BatchNorm2d):
@@ -64,7 +65,8 @@ def train(hyp, opt, device, tb_writer=None):
         yaml.safe_dump(vars(opt), f, sort_keys=False)
 
     # Configure
-    plots = not opt.evolve  # create plots
+    # plots = not opt.evolve  # create plots
+    plots = False
     cuda = device.type != 'cpu'
     init_seeds(2 + rank)
     with open(opt.data) as f:
@@ -92,6 +94,7 @@ def train(hyp, opt, device, tb_writer=None):
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location=device)  # load checkpoint
+        # ch → channel
         model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (opt.cfg or hyp.get('anchors')) and not opt.resume else []  # exclude keys
         state_dict = ckpt['model'].float().state_dict()  # to FP32

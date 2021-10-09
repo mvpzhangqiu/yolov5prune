@@ -61,6 +61,7 @@ def test(data,
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
         # Load model
+        # import ipdb;ipdb.set_trace()
         model = attempt_load(weights, map_location=device)  # load FP32 model
         gs = max(int(model.stride.max()), 32)  # grid size (max stride)
         imgsz = check_img_size(imgsz, s=gs)  # check img_size
@@ -70,6 +71,7 @@ def test(data,
         #     model = nn.DataParallel(model)
 
     # Half
+    # import ipdb;ipdb.set_trace()
     # half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
     # if half:
     #     model.half()
@@ -377,14 +379,14 @@ def test_prune(data,
     # 找到highest_thre对应的下标对应的百分比
     percent_limit = (sorted_bn == highest_thre).nonzero()[0, 0].item() / len(bn_weights)
 
-    print(f'Suggested Gamma threshold should be less than {highest_thre:.4f}.')
+    print(f'Suggested Gamma threshold should be less than {highest_thre:.10f}.')
     print(f'The corresponding prune ratio is {percent_limit:.3f}, but you can set higher.')
     assert opt.percent < percent_limit, f"Prune ratio should less than {percent_limit}, otherwise it may cause error!!!"
 
     # model_copy = deepcopy(model)
     thre_index = int(len(sorted_bn) * opt.percent)
     thre = sorted_bn[thre_index]
-    print(f'Gamma value that less than {thre:.4f} are set to zero!')
+    print(f'Gamma value that less than {thre:.10f} are set to zero!')
     print("=" * 94)
     print(f"|\t{'layer name':<25}{'|':<10}{'origin channels':<20}{'|':<10}{'remaining channels':<20}|")
     remain_num = 0
@@ -530,10 +532,13 @@ def test_prune(data,
     pruned_model.eval()
     pruned_model.names = model.names
     # =============================================================================================== #
+    half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
+    if half:
+        model.half()
     torch.save({"model": model}, "orign_model.pt")
     model = pruned_model
     # import ipdb;ipdb.set_trace()
-    torch.save({"model":model}, "pruned_model.pt")
+    torch.save({"model": model}, "pruned_model.pt")
     model.cuda().eval()
 
     if isinstance(data, str):
@@ -756,11 +761,12 @@ def test_prune(data,
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
     # parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity2/weights/best.pt,help='model.pt path(s)')
-    parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity2/weights/best.pt',help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity6/weights/best.pt',help='model.pt path(s)') # 正则系数 0.001
+    parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity10/weights/best.pt',help='model.pt path(s)')  # 正则系数 0.0001
     # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt',help='model.pt path(s)')
     # parser.add_argument('--data', type=str, default='data/coco128.yaml', help='data.yaml path')
     parser.add_argument('--data', type=str, default='/home/zq/work/test/yolov5-master/data/cnl.yaml', help='data.yaml path')
-    parser.add_argument('--percent', type=float, default=0.15, help='prune percentage')
+    parser.add_argument('--percent', type=float, default=0.35, help='prune percentage')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')

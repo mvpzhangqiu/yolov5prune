@@ -3,5 +3,4 @@
 #python train.py --img 640 --batch 4 --epochs 100 --data coco128.yaml --cfg models/yolov5s.yaml
 
 echo "train begin..."
-nohup python train_sparsity.py > 1008-30epoch.log 2>&1 &
-#nohup python train_prun.py > ./0831-100-prun.log 2>&1 &
+nohup python finetune_pruned.py --epochs 30 > 0930-50-finetune.log 2>&1 &

@@ -94,13 +94,17 @@ class TransformerBlock(nn.Module):
 class Bottleneck(nn.Module):
     # Standard bottleneck
     def __init__(self, c1, c2, shortcut=True, g=1, e=0.5):  # ch_in, ch_out, shortcut, groups, expansion
+        # 将channel数先减小（1*1卷积）再扩大（3*3卷积）→通道数先减小一半，再扩大两倍，最终输入输出通道数不变
+        # shortcut：是否给bottleneck结构部添加shortcut连接，添加后即为ResNet模块；
+        # e，即expansion。bottleneck结构中的瓶颈部分的通道膨胀率，默认使用0.5即变为输入的1/2
         super(Bottleneck, self).__init__()
         c_ = int(c2 * e)  # hidden channels
-        self.cv1 = Conv(c1, c_, 1, 1)
-        self.cv2 = Conv(c_, c2, 3, 1, g=g)
+        self.cv1 = Conv(c1, c_, 1, 1)  # 1*1卷积，通道数先减小一半
+        self.cv2 = Conv(c_, c2, 3, 1, g=g)  # 3*3卷积，通道数再扩大两倍
         self.add = shortcut and c1 == c2
 
     def forward(self, x):
+        # 与ResNet对应的，使用add而非concat进行特征融合，使得融合后的特征数不变
         return x + self.cv2(self.cv1(x)) if self.add else self.cv2(self.cv1(x))
 
 
@@ -151,23 +155,29 @@ class SPP(nn.Module):
     def __init__(self, c1, c2, k=(5, 9, 13)):
         super(SPP, self).__init__()
         c_ = c1 // 2  # hidden channels
-        self.cv1 = Conv(c1, c_, 1, 1)
+        self.cv1 = Conv(c1, c_, 1, 1)  # 通道数减半
         self.cv2 = Conv(c_ * (len(k) + 1), c2, 1, 1)
-        self.m = nn.ModuleList([nn.MaxPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
+        self.m = nn.ModuleList([nn.MaxPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])  # 3个最大池化
 
     def forward(self, x):
         x = self.cv1(x)
+        # 将池化结果与通道减半结果拼接→通道变为原来2倍
+        # 拼接结果进行第二个卷积模块处理
         return self.cv2(torch.cat([x] + [m(x) for m in self.m], 1))
 
 
 class Focus(nn.Module):
     # Focus wh information into c-space
+    # 关注图片输入的宽高信息，将其切片再拼接。下采样，但无信息丢失。
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
         super(Focus, self).__init__()
+        # 输入channel数量变为4倍
         self.conv = Conv(c1 * 4, c2, k, s, p, g, act)
         # self.contract = Contract(gain=2)
 
     def forward(self, x):  # x(b,c,w,h) -> y(b,4c,w/2,h/2)
+        # 先切片（横纵两个方向、从0、1两个位置开始进行步长为2的切片）
+        # 再concat
         return self.conv(torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1))
         # return self.conv(self.contract(x))
 

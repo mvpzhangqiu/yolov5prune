@@ -35,6 +35,7 @@ data/test/*
 
 storage.googleapis.com
 runs/*
+compare/*
 
 !data/images/zidane.jpg
 !data/images/bus.jpg

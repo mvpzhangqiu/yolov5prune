@@ -64,10 +64,11 @@ def detect(opt):
         if img.ndimension() == 3:
             img = img.unsqueeze(0)
 
-        # Inference
-        t1 = time_synchronized()
-        pred = model(img, augment=opt.augment)[0]
-        t3 = time_synchronized()
+        with torch.no_grad():
+            # Inference
+            t1 = time_synchronized()
+            pred = model(img, augment=opt.augment)[0]
+            t3 = time_synchronized()
 
         # torch.save(model.state_dict(),"model.pth")
         # print(model)
@@ -118,11 +119,11 @@ def detect(opt):
                             save_one_box(xyxy, im0s, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
             # Print time (inference)
-            print(f'{s}Done. ({t3 - t1:.3f}s)')
+            # print(f'{s}Done. ({t3 - t1:.4f}s)')
 
 
             # Print time (inference + NMS)
-            # print(f'{s}Done. ({t2 - t1:.3f}s)')
+            print(f'{s}Done. ({t2 - t1:.4f}s)')
 
             # Stream results
             if view_img:
@@ -157,12 +158,13 @@ def detect(opt):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='./pruned_model.pt', help='model.pt path(s)')
-    # parser.add_argument('--weights', nargs='+', type=str, default='./orign_model.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='pruned_model.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='orign_model.pt', help='model.pt path(s)')
     # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='/home/zq/work/data/images/val/', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--weights', nargs='+', type=str, default='runs/train/exp6/weights/best.pt', help='model.pt path(s)')
+    parser.add_argument('--source', type=str, default='/home/zq/work/img_test/', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
-    parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--view-img', action='store_true', help='display results')
@@ -181,7 +183,7 @@ if __name__ == '__main__':
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     opt = parser.parse_args()
-    # print(opt)
+    print(opt)
     check_requirements(exclude=('tensorboard', 'pycocotools', 'thop'))
 
     with torch.no_grad():
