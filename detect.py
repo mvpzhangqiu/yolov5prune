@@ -57,6 +57,7 @@ def detect(opt):
     if device.type != 'cpu':
         model(torch.zeros(1, 3, imgsz, imgsz).to(device).type_as(next(model.parameters())))  # run once
     t0 = time.time()
+    t_infer = 0
     for path, img, im0s, vid_cap in dataset:
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -66,14 +67,13 @@ def detect(opt):
 
         # Inference
         t1 = time_synchronized()
-        pred = model(img, augment=opt.augment)[0]
-        t3 = time_synchronized()
-
-        # torch.save(model.state_dict(),"model.pth")
-        # print(model)
+        pred, _ = model(img, augment=opt.augment)
+        t_infer += (time_synchronized() - t1)
 
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
+        # pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
+
         t2 = time_synchronized()
 
         # Apply Classifier
@@ -118,11 +118,10 @@ def detect(opt):
                             save_one_box(xyxy, im0s, file=save_dir / 'crops' / names[c] / f'{p.stem}.jpg', BGR=True)
 
             # Print time (inference)
-            print(f'{s}Done. ({t3 - t1:.3f}s)')
-
+            # print(f'{s}Done. ({t3 - t1:.4f}s)')
 
             # Print time (inference + NMS)
-            # print(f'{s}Done. ({t2 - t1:.3f}s)')
+            print(f'{s}Done. ({t2 - t1:.4f}s)')
 
             # Stream results
             if view_img:
@@ -153,14 +152,20 @@ def detect(opt):
         print(f"Results saved to {save_dir}{s}")
 
     print(f'Done. ({time.time() - t0:.3f}s)')
+    print("=" * 100)
+    print(f'The total of inference time is：. ({t_infer:.3f}s)')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default='./pruned_model.pt', help='model.pt path(s)')
-    # parser.add_argument('--weights', nargs='+', type=str, default='./orign_model.pt', help='model.pt path(s)')
     # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt', help='model.pt path(s)')
-    parser.add_argument('--source', type=str, default='/home/zq/work/data/images/val/', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--weights', nargs='+', type=str, default='runs/train/sparisity4_3/weights/best.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='runs/weights/spar43/orign_model.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='runs/weights/spar43/pruned_model.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='runs/weights/spar43/finetune_model.pt', help='model.pt path(s)')
+    # parser.add_argument('--weights', nargs='+', type=str, default='runs/train/spar_43/weights/best.pt', help='model.pt path(s)')
+    # parser.add_argument('--source', type=str, default='/home/zq/work/data/images/val', help='source')  # file/folder, 0 for webcam
+    parser.add_argument('--source', type=str, default='/home/zq/work/img_test', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.45, help='IOU threshold for NMS')
@@ -181,7 +186,7 @@ if __name__ == '__main__':
     parser.add_argument('--hide-labels', default=False, action='store_true', help='hide labels')
     parser.add_argument('--hide-conf', default=False, action='store_true', help='hide confidences')
     opt = parser.parse_args()
-    # print(opt)
+    print(opt)
     check_requirements(exclude=('tensorboard', 'pycocotools', 'thop'))
 
     with torch.no_grad():

@@ -342,6 +342,8 @@ def test_prune(data,
     # half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
     # if half:
     #     model.half()
+
+
     # =========================================== prune model ====================================#
     # print("model.module_list:",model.named_children())
     model_list = {}
@@ -350,9 +352,8 @@ def test_prune(data,
     ignore_bn_list = []
 
     for i, layer in model.named_modules():
-        # if isinstance(layer, nn.Conv2d):
-        #     print("@Conv :",i,layer)
         if isinstance(layer, Bottleneck):
+            # add为真→则存在shortcut，将当前conv、bn层忽略，不进行剪枝
             if layer.add:
                 ignore_conv_list.append(i.rsplit(".",2)[0]+".cv1.conv")
                 ignore_conv_list.append(i + '.cv2.conv')
@@ -360,6 +361,7 @@ def test_prune(data,
                 ignore_bn_list.append(i + '.cv1.bn')
                 ignore_bn_list.append(i + '.cv2.bn')
 
+        # 将符合剪枝规则的conv层、bn层分别加入model_list、model_bn_list
         if isinstance(layer, nn.Conv2d) and not i.startswith("model.24"):
             if i not in ignore_conv_list:
                 model_list[i] = layer
@@ -367,23 +369,25 @@ def test_prune(data,
         if isinstance(layer, nn.BatchNorm2d):
             if i not in ignore_bn_list:
                 model_bn_list[i] = layer
-            # bnw = layer.state_dict()['weight']
+
     model_list = {k:v for k,v in model_list.items() if k not in ignore_conv_list}
     model_bn_list = {k: v for k, v in model_bn_list.items() if k not in ignore_bn_list}
     # print("prune module :",model_list.keys())
     prune_bn_list = [layer.replace("conv", "bn") for layer in model_list.keys()]
     # print(prune_conv_list)
+
+    # 将卷积核权重取绝对值从模型提取出来并进行排序
     conv_weights = gather_conv_weights(model_list)
     sorted_conv = torch.sort(conv_weights)[0]
-    # 避免剪掉所有channel的最高阈值(每个BN层的gamma的最大值的最小值即为阈值上限)
+    # 避免剪掉所有卷积层的最高阈值(每个Conv层的最大值的最小值即为阈值上限)
     highest_thre = []
     for convlayer in model_list.values():
         highest_thre.append(convlayer.weight.data.abs().sum(dim=1).sum(dim=1).sum(dim=1).max().item())
-    # print("highest_thre:",highest_thre)
+    # 所有卷积层最大值的最小值
     highest_thre = min(highest_thre)
     # 找到highest_thre对应的下标对应的百分比
     percent_limit = (sorted_conv == highest_thre).nonzero()[0, 0].item() / len(conv_weights)
-
+    # import ipdb;ipdb.set_trace()
     print(f'Suggested Conv threshold should be less than {highest_thre:.4f}.')
     print(f'The corresponding conv prune ratio is {percent_limit:.3f}, but you can set higher.')
 
@@ -393,6 +397,10 @@ def test_prune(data,
     print(f'Conv value that less than {thre:.4f} are set to zero!')
     print("=" * 94)
     print(f"|\t{'layer name':<25}{'|':<10}{'origin channels':<20}{'|':<10}{'remaining channels':<20}|")
+
+    # import ipdb;ipdb.set_trace()
+
+
     # =================================== prune bn gamma =============================================#
     bn_weights = gather_bn_weights(model_bn_list)
     sorted_bn = torch.sort(bn_weights)[0]
@@ -420,12 +428,20 @@ def test_prune(data,
     remain_num = 0
     bnremain_num = 0
     modelstate = model.state_dict()
+
     # ============================== save pruned model config yaml =================================#
     pruned_yaml = {}
     nc = model.model[-1].nc
     pruned_yaml["nc"] = model.model[-1].nc
-    pruned_yaml["depth_multiple"] = 0.33
-    pruned_yaml["width_multiple"] = 0.50
+
+    # # yolov5s
+    # pruned_yaml["depth_multiple"] = 0.33
+    # pruned_yaml["width_multiple"] = 0.50
+
+    # yolov5m
+    pruned_yaml["depth_multiple"] = 0.67
+    pruned_yaml["width_multiple"] = 0.75
+
     pruned_yaml["anchors"] = [[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]]
     anchors = [[10,13, 16,30, 33,23], [30,61, 62,45, 59,119], [116,90, 156,198, 373,326]]
     pruned_yaml["backbone"] = [
@@ -833,13 +849,15 @@ def test_prune(data,
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
-    parser.add_argument('--weights', nargs='+', type=str, default='/home/kong/yolov5/runs/train/exp175/weights/last.pt',
+    # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt',
+    #                     help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5prune/runs/train/sparisity4_3/weights/best.pt',
                         help='model.pt path(s)')
-    parser.add_argument('--data', type=str, default='data/mini.yaml', help='*.data path')
-    parser.add_argument('--conv_percent', type=float, default=0.78, help='prune percentage')
-    parser.add_argument('--bn_percent', type=float, default=0.85, help='prune percentage')
-    parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
-    parser.add_argument('--img-size', type=int, default=416, help='inference size (pixels)')
+    parser.add_argument('--data', type=str, default='/home/zq/work/test/yolov5-master/data/cnl.yaml', help='data.yaml path')
+    parser.add_argument('--conv_percent', type=float, default=0.15, help='prune percentage')
+    parser.add_argument('--bn_percent', type=float, default=0.75, help='prune percentage')
+    parser.add_argument('--batch-size', type=int, default=8, help='size of each image batch')
+    parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
@@ -852,7 +870,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-conf', action='store_true', help='save confidences in --save-txt labels')
     parser.add_argument('--save-json', action='store_true', help='save a cocoapi-compatible JSON results file')
     parser.add_argument('--project', default='runs/test', help='save to project/name')
-    parser.add_argument('--name', default='exp', help='save to project/name')
+    parser.add_argument('--name', default='convbn', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     opt = parser.parse_args()
     opt.save_json |= opt.data.endswith('coco.yaml')
@@ -862,21 +880,21 @@ if __name__ == '__main__':
     print("=" * 150)
     print("Test before prune:")
     if opt.task in ('train', 'val', 'test'):  # run normally
-        # test(opt.data,
-        #      opt.weights,
-        #      opt.batch_size,
-        #      opt.img_size,
-        #      opt.conf_thres,
-        #      opt.iou_thres,
-        #      opt.save_json,
-        #      opt.single_cls,
-        #      opt.augment,
-        #      opt.verbose,
-        #      save_txt=opt.save_txt | opt.save_hybrid,
-        #      save_hybrid=opt.save_hybrid,
-        #      save_conf=opt.save_conf,
-        #      opt=opt
-        #      )
+        test(opt.data,
+             opt.weights,
+             opt.batch_size,
+             opt.img_size,
+             opt.conf_thres,
+             opt.iou_thres,
+             opt.save_json,
+             opt.single_cls,
+             opt.augment,
+             opt.verbose,
+             save_txt=opt.save_txt | opt.save_hybrid,
+             save_hybrid=opt.save_hybrid,
+             save_conf=opt.save_conf,
+             opt=opt
+             )
         print("=" * 150)
         print("Test after prune:")
         test_prune(opt.data,

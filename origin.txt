@@ -1,0 +1,22 @@
+ssh://root@192.168.202.205:2240/opt/conda/bin/python3.8 -u /home/zq/work/test/yolov5prune/detect.py
+Namespace(agnostic_nms=False, augment=False, classes=None, conf_thres=0.25, device='', exist_ok=False, hide_conf=False, hide_labels=False, img_size=640, iou_thres=0.45, line_thickness=3, name='exp', nosave=False, project='runs/detect', save_conf=False, save_crop=False, save_txt=False, source='/home/zq/work/img_test/', update=False, view_img=False, weights='./orign_model.pt')
+YOLOv5 🚀 44108b2 torch 1.9.0a0+df837d0 CUDA:0 (NVIDIA GeForce RTX 2080 Ti, 11011.4375MB)
+
+image 1/14 /home/zq/work/img_test/cnl_1027.jpg: 384x640 1 Digger, 1 Wide body vehicle, Done. (0.0506s)
+image 2/14 /home/zq/work/img_test/cnl_1028.jpg: 384x640 Done. (0.0244s)
+image 3/14 /home/zq/work/img_test/cnl_1029.jpg: 384x640 Done. (0.0189s)
+image 4/14 /home/zq/work/img_test/cnl_1030.jpg: 384x640 1 Digger, Done. (0.0267s)
+image 5/14 /home/zq/work/img_test/cnl_1031.jpg: 384x640 Done. (0.0244s)
+image 6/14 /home/zq/work/img_test/cnl_1032.jpg: 384x640 Done. (0.0252s)
+image 7/14 /home/zq/work/img_test/cnl_1033.jpg: 384x640 1 Roadblock, Done. (0.0312s)
+image 8/14 /home/zq/work/img_test/cnl_1034.jpg: 384x640 1 Roadblock, Done. (0.0314s)
+image 9/14 /home/zq/work/img_test/cnl_1035.jpg: 384x640 1 Roadblock, Done. (0.0306s)
+image 10/14 /home/zq/work/img_test/cnl_1036.jpg: 384x640 2 Roadblocks, Done. (0.0208s)
+image 11/14 /home/zq/work/img_test/cnl_1037.jpg: 384x640 Done. (0.0244s)
+image 12/14 /home/zq/work/img_test/cnl_1038.jpg: 384x640 1 Wide body vehicle, 1 Dump Truck, Done. (0.0267s)
+image 13/14 /home/zq/work/img_test/cnl_1039.jpg: 384x640 1 Wide body vehicle, Done. (0.0337s)
+image 14/14 /home/zq/work/img_test/cnl_1040.jpg: 384x640 1 Wide body vehicle, Done. (0.0315s)
+Results saved to runs/detect/exp50
+Done. (1.614s)
+
+Process finished with exit code 0

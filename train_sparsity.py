@@ -321,25 +321,30 @@ def train(hyp, opt, device, tb_writer=None):
 
             # Backward
             loss.backward()
-            # scaler.scale(loss).backward()
             # # ============================= sparsity training ========================== #
+            # sr为正则系数λ，srtmp随着epoch衰减（类似lr）
             srtmp = opt.sr*(1 - 0.9*epoch/epochs)
             if opt.st:
                 ignore_bn_list = []
                 for k, m in model.named_modules():
+                    # 对Bottleneck中存在shortcut的卷积模块进行标记，对其不进行剪枝
                     if isinstance(m, Bottleneck):
+                        # self.add = shortcut and c1 == c2
+                        # add为true时，存在shortcut，将该Bottleneck中的cv1、cv2卷积模块（BN层包含在卷积模块中）
+                        # 加入ignore_bn_list中，对其不进行剪枝
                         if m.add:
                             ignore_bn_list.append(k.rsplit(".", 2)[0] + ".cv1.bn")
                             ignore_bn_list.append(k + '.cv1.bn')
                             ignore_bn_list.append(k + '.cv2.bn')
+                    # 对符合剪枝规则bn层的尺度因子γ和偏移因子β进行L1正则化
+                    # weight→尺度因子γ
+                    # bias→偏移因子β
                     if isinstance(m, nn.BatchNorm2d) and (k not in ignore_bn_list):
                         m.weight.grad.data.add_(srtmp * torch.sign(m.weight.data))  # L1
                         m.bias.grad.data.add_(opt.sr*10 * torch.sign(m.bias.data))  # L1
             # # ============================= sparsity training ========================== #
 
             optimizer.step()
-                # scaler.step(optimizer)  # optimizer.step
-                # scaler.update()
             optimizer.zero_grad()
             if ema:
                 ema.update(model)
@@ -511,7 +516,8 @@ def train(hyp, opt, device, tb_writer=None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--st', action='store_true',default=True, help='train with L1 sparsity normalization')
-    parser.add_argument('--sr', type=float, default=0.001, help='L1 normal sparse rate')
+    # parser.add_argument('--sr', type=float, default=0.001, help='L1 normal sparse rate')  # sparsity6
+    parser.add_argument('--sr', type=float, default=0.0001, help='L1 normal sparse rate')
     parser.add_argument('--weights', type=str, default='/home/zq/work/test/yolov5m-7.31.pt', help='initial weights path')
     # parser.add_argument('--weights', type=str, default='runs/train/exp/weights/best.pt', help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
@@ -520,6 +526,7 @@ if __name__ == '__main__':
     parser.add_argument('--epochs', type=int, default=30)
     # parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs')
     parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
+    # parser.add_argument('--batch-size', type=int, default=4, help='total batch size for all GPUs')
     parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='[train, test] image sizes')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')

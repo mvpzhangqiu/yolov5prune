@@ -321,32 +321,39 @@ def train(hyp, opt, device, tb_writer=None):
 
             # Backward
             loss.backward()
-            # scaler.scale(loss).backward()
             # # ============================= sparsity training && prune based on filters ========================== #
-            srctmp = opt.src*(1 - 0.9*epoch/epochs)
+            # src为conv权重的正则系数，srctmp随着epoch衰减（类似lr）
+            # srb为bn尺度因子的正则系数，srbtmp随着epoch衰减（类似lr）
+            srctmp = opt.src * (1 - 0.9 * epoch / epochs)
             srbtmp = opt.srb * (1 - 0.9 * epoch / epochs)
             if opt.st:
                 ignore_conv_list = []
                 ignore_bn_list = []
                 for k, m in model.named_modules():
-                    # print(k)
+                    # 对Bottleneck中存在shortcut的卷积模块进行标记，对其不进行剪枝
                     if isinstance(m, Bottleneck):
                         if m.add:
+                            # self.add = shortcut and c1 == c2
+                            # add为true时，存在shortcut，对应conv、bn不进行剪枝
                             ignore_conv_list.append(k.rsplit(".", 2)[0] + ".cv1.conv")
                             ignore_conv_list.append(k + ".cv2.conv")
                             ignore_bn_list.append(k.rsplit(".", 2)[0] + ".cv1.bn")
                             ignore_bn_list.append(k + '.cv1.bn')
                             ignore_bn_list.append(k + '.cv2.bn')
+                    # 对符合剪枝规则conv权重进行L1正则化
                     if isinstance(m, nn.Conv2d) and not k.startswith("model.24"):
                         # print(k,m, m.weight.data.shape)
                         if k not in ignore_conv_list:
                             for k in range(m.weight.data.shape[0]):
                                 m.weight.grad.data[k].add_(srctmp * torch.sign(m.weight.data[k]))  # L1
+                    # 对符合剪枝规则bn层的尺度因子γ和偏移因子β进行L1正则化
+                    # weight→尺度因子γ
+                    # bias→偏移因子β
                     if isinstance(m, nn.BatchNorm2d) and (k not in ignore_bn_list):
                         m.weight.grad.data.add_(srbtmp * torch.sign(m.weight.data))  # L1
                         m.bias.grad.data.add_(srbtmp * 10 * torch.sign(m.bias.data))  # L1
-            # print(mcv2_bn_list)
             # # ============================= sparsity training ========================== #
+
             # Optimize
            # if ni % accumulate == 0:
             optimizer.step()
@@ -533,16 +540,17 @@ def train(hyp, opt, device, tb_writer=None):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--st', action='store_true', help='train with L1 sparsity normalization')
+    parser.add_argument('--st', action='store_true', default=True, help='train with L1 sparsity normalization')
     parser.add_argument('--src', type=float, default=0.00001, help='L1 normal sparse rate for conv weights')
-    parser.add_argument('--srb', type=float, default=0.0005, help='L1 normal sparse rate for bn gama')
-    parser.add_argument('--weights', type=str, default='yolov5s.pt', help='initial weights path')
-    parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
-    parser.add_argument('--data', type=str, default='data/mini.yaml', help='data.yaml path')
+    parser.add_argument('--srb', type=float, default=0.00001, help='L1 normal sparse rate for bn gama')
+    parser.add_argument('--weights', type=str, default='/home/zq/work/test/yolov5m-7.31.pt', help='initial weights path')
+    parser.add_argument('--cfg', type=str, default='models/yolov5m.yaml', help='model.yaml path')
+    parser.add_argument('--data', type=str, default='/home/zq/work/test/yolov5-master/data/cnl.yaml', help='data.yaml path')
+    # parser.add_argument('--data', type=str, default='/home/zq/work/test/data/cnl.yaml', help='data.yaml path')
     parser.add_argument('--hyp', type=str, default='data/hyp.scratch.yaml', help='hyperparameters path')
-    parser.add_argument('--epochs', type=int, default=150)
-    parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
-    parser.add_argument('--img-size', nargs='+', type=int, default=[416, 416], help='[train, test] image sizes')
+    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--batch-size', type=int, default=2, help='total batch size for all GPUs')
+    parser.add_argument('--img-size', nargs='+', type=int, default=[640, 640], help='[train, test] image sizes')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
@@ -561,7 +569,7 @@ if __name__ == '__main__':
     parser.add_argument('--workers', type=int, default=8, help='maximum number of dataloader workers')
     parser.add_argument('--project', default='runs/train', help='save to project/name')
     parser.add_argument('--entity', default=None, help='W&B entity')
-    parser.add_argument('--name', default='exp', help='save to project/name')
+    parser.add_argument('--name', default='cb', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--quad', action='store_true', help='quad dataloader')
     parser.add_argument('--linear-lr', action='store_true', help='linear LR')
