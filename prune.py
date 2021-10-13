@@ -10,6 +10,7 @@ import yaml
 from tqdm import tqdm
 import torch.nn as nn
 from models.experimental import attempt_load
+from utils import torch_utils
 from utils.datasets import create_dataloader
 from utils.general import coco80_to_coco91_class, check_dataset, check_file, check_img_size, check_requirements, \
     box_iou, non_max_suppression, scale_coords, xyxy2xywh, xywh2xyxy, set_logging, increment_path, colorstr
@@ -75,6 +76,8 @@ def test(data,
     # half = device.type != 'cpu' and half_precision  # half precision only supported on CUDA
     # if half:
     #     model.half()
+
+    torch_utils.model_info(model)
 
     # Configure
     model.eval()
@@ -762,7 +765,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='test.py')
     # parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity2/weights/best.pt,help='model.pt path(s)')
     # parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity6/weights/best.pt',help='model.pt path(s)') # 正则系数 0.001
-    parser.add_argument('--weights', nargs='+', type=str, default='./runs/train/sparisity10/weights/best.pt',help='model.pt path(s)')  # 正则系数 0.0001
+    parser.add_argument('--weights', nargs='+', type=str, default='/runs/train/sparisity10/weights/best.pt',help='model.pt path(s)')  # 正则系数 0.0001
     # parser.add_argument('--weights', nargs='+', type=str, default='/home/zq/work/test/yolov5m-7.31.pt',help='model.pt path(s)')
     # parser.add_argument('--data', type=str, default='data/coco128.yaml', help='data.yaml path')
     parser.add_argument('--data', type=str, default='/home/zq/work/test/yolov5-master/data/cnl.yaml', help='data.yaml path')
